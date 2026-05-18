@@ -45,7 +45,7 @@ MQTT_USER = "gps_device"
 MQTT_PASS = "Gps12345"
 
 # Keep TRUE first for Railway testing
-TEST_MODE = True
+TEST_MODE = False
 
 
 # ──────────────────────────────────────────────────────────
