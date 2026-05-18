@@ -16,6 +16,9 @@ class Store(TypedDict):
 
 # ── App setup ─────────────────────────────────────────────
 app = Flask(__name__)
+@app.route("/")
+def home():
+    return "Hello"
 app.config["SECRET_KEY"] = "gps-group2"
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
