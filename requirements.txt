@@ -3,4 +3,3 @@ flask-socketio
 paho-mqtt
 simple-websocket
 gunicorn
-eventlet
