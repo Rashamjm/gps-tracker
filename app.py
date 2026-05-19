@@ -44,7 +44,7 @@ MQTT_TOPIC = "V2/Vehicle/Telemetry"
 MQTT_USER = "gps_device"
 MQTT_PASS = "Gps12345"
 
-TEST_MODE = False
+TEST_MODE = True
 
 
 # ──────────────────────────────────────────────────────────
