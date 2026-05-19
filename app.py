@@ -124,6 +124,8 @@ def emit_record(
     az,
     device_id,
     behaviour=None,
+    data_k_gain=0,
+    data_uncertainty=0,
 ):
     global inited
 
@@ -133,9 +135,10 @@ def emit_record(
         kf_speed.X = raw_spd
         inited = True
 
-    f_lat = round(kf_lat.update(raw_lat), 6)
-    f_lon = round(kf_lon.update(raw_lon), 6)
-    f_spd = round(kf_speed.update(raw_spd), 1)
+    # Use ESP32 filtered data directly
+      f_lat = round(raw_lat, 6)
+      f_lon = round(raw_lon, 6)
+      f_spd = round(raw_spd, 1)
 
     beh = behaviour or detect_behaviour(ax, ay, az)
 
@@ -145,7 +148,6 @@ def emit_record(
 
     "lat": f_lat,
     "lon": f_lon,
-
     "lat_raw": round(raw_lat, 6),
     "lon_raw": round(raw_lon, 6),
 
@@ -159,11 +161,11 @@ def emit_record(
     "accel_y": round(ay, 3),
     "accel_z": round(az, 3),
 
-    # ADD THESE
-    "kalman_gain": round(kf_lat.K, 3),
-    "uncertainty": round(kf_lat.P, 3),
-
     "msg_count": store["count"] + 1,
+
+    # From ESP32 Kalman
+    "kalman_gain": round(data_k_gain, 4),
+    "uncertainty": round(data_uncertainty, 4),
 }
     
 
@@ -204,18 +206,19 @@ def process_message(payload):
         imu = data.get("imu", {})
 
         emit_record(
-            raw_lat=float(gps.get("lat", 6.3553)),
-            raw_lon=float(gps.get("lon", 80.5236)),
-            raw_spd=float(gps.get("speed", 0)),
-            alt=float(gps.get("altitude", 12)),
-            ax=float(imu.get("accel_x", 0)),
-            ay=float(imu.get("accel_y", 0)),
-            az=float(imu.get("accel_z", 9.81)),
-            device_id=data.get(
-                "device_id",
-                "GROUP2_VEHICLE_01"
-            ),
-        )
+    raw_lat=float(gps.get("lat", 6.3553)),
+    raw_lon=float(gps.get("lon", 80.5236)),
+    raw_spd=float(gps.get("speed", 0)),
+    alt=float(gps.get("altitude", 12)),
+    ax=float(imu.get("accel_x", 0)),
+    ay=float(imu.get("accel_y", 0)),
+    az=float(imu.get("accel_z", 9.81)),
+    device_id=data.get("device_id", "GROUP2_VEHICLE_01"),
+
+    behaviour=data.get("behaviour"),
+    data_k_gain=float(data.get("kalman_gain", 0)),
+    data_uncertainty=float(data.get("uncertainty", 0)),
+)
 
     except Exception as e:
         print("Message Error:", e)
