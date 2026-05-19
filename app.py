@@ -140,20 +140,31 @@ def emit_record(
     beh = behaviour or detect_behaviour(ax, ay, az)
 
     rec = {
-        "time": datetime.now().strftime("%H:%M:%S"),
-        "device_id": device_id,
-        "lat": f_lat,
-        "lon": f_lon,
-        "lat_raw": round(raw_lat, 6),
-        "lon_raw": round(raw_lon, 6),
-        "speed": f_spd,
-        "altitude": alt,
-        "behaviour": beh,
-        "beh_color": BEH_COLOR[beh],
-        "accel_x": round(ax, 3),
-        "accel_y": round(ay, 3),
-        "accel_z": round(az, 3),
-        "msg_count": store["count"] + 1,
+    "time": datetime.now().strftime("%H:%M:%S"),
+    "device_id": device_id,
+
+    "lat": f_lat,
+    "lon": f_lon,
+
+    "lat_raw": round(raw_lat, 6),
+    "lon_raw": round(raw_lon, 6),
+
+    "speed": f_spd,
+    "altitude": alt,
+
+    "behaviour": beh,
+    "beh_color": BEH_COLOR[beh],
+
+    "accel_x": round(ax, 3),
+    "accel_y": round(ay, 3),
+    "accel_z": round(az, 3),
+
+    # ADD THESE
+    "kalman_gain": round(kf_lat.K, 3),
+    "uncertainty": round(kf_lat.P, 3),
+
+    "msg_count": store["count"] + 1,
+}
     }
 
     store["latest"] = rec
