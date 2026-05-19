@@ -98,6 +98,8 @@ def emit_record(
     ay,
     az,
     device_id,
+    kalman_gain=0,
+    uncertainty=0,
     behaviour=None,
 ):
     f_lat = round(raw_lat, 6)
@@ -109,17 +111,27 @@ def emit_record(
     rec = {
         "time": datetime.now().strftime("%H:%M:%S"),
         "device_id": device_id,
+
         "lat": f_lat,
         "lon": f_lon,
+
         "lat_raw": round(raw_lat, 6),
         "lon_raw": round(raw_lon, 6),
+
         "speed": f_spd,
         "altitude": alt,
+
         "behaviour": beh,
         "beh_color": BEH_COLOR[beh],
+
         "accel_x": round(ax, 3),
         "accel_y": round(ay, 3),
         "accel_z": round(az, 3),
+
+        # Kalman values
+        "kalman_gain": round(kalman_gain, 3),
+        "uncertainty": round(uncertainty, 3),
+
         "msg_count": store["count"] + 1,
     }
 
@@ -145,6 +157,8 @@ def emit_record(
         f"[{rec['time']}] "
         f"{f_lat}, {f_lon} | "
         f"{f_spd} km/h | "
+        f"K={kalman_gain:.3f} | "
+        f"P={uncertainty:.3f} | "
         f"{beh}"
     )
 
@@ -152,34 +166,78 @@ def emit_record(
 # ──────────────────────────────────────────────────────────
 # MQTT Processing
 # ──────────────────────────────────────────────────────────
-def process_message(payload):
-    try:
-        data = json.loads(payload)
+def emit_record(
+    raw_lat,
+    raw_lon,
+    raw_spd,
+    alt,
+    ax,
+    ay,
+    az,
+    device_id,
+    kalman_gain=0,
+    uncertainty=0,
+    behaviour=None,
+):
+    f_lat = round(raw_lat, 6)
+    f_lon = round(raw_lon, 6)
+    f_spd = round(raw_spd, 1)
 
-        gps = data.get("gps", {})
-        imu = data.get("imu", {})
+    beh = behaviour or detect_behaviour(ax, ay, az)
 
-        emit_record(
-            raw_lat=float(gps.get("lat", 6.3553)),
-            raw_lon=float(gps.get("lon", 80.5236)),
-            raw_spd=float(gps.get("speed", 0)),
-            alt=float(gps.get("altitude", 12)),
-            ax=float(imu.get("accel_x", 0)),
-            ay=float(imu.get("accel_y", 0)),
-            az=float(imu.get("accel_z", 9.81)),
-            device_id=data.get(
-                "device_id",
-                "GROUP2_VEHICLE_01"
-            ),
-            behaviour=data.get(
-                "behaviour",
-                "NORMAL"
-            )
-        )
+    rec = {
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "device_id": device_id,
 
-    except Exception as e:
-        print("Message Error:", e)
+        "lat": f_lat,
+        "lon": f_lon,
 
+        "lat_raw": round(raw_lat, 6),
+        "lon_raw": round(raw_lon, 6),
+
+        "speed": f_spd,
+        "altitude": alt,
+
+        "behaviour": beh,
+        "beh_color": BEH_COLOR[beh],
+
+        "accel_x": round(ax, 3),
+        "accel_y": round(ay, 3),
+        "accel_z": round(az, 3),
+
+        # Kalman values
+        "kalman_gain": round(kalman_gain, 3),
+        "uncertainty": round(uncertainty, 3),
+
+        "msg_count": store["count"] + 1,
+    }
+
+    store["latest"] = rec
+    store["count"] += 1
+    store["behaviours"][beh] += 1
+
+    store["history"].append(rec)
+
+    if len(store["history"]) > 80:
+        store["history"].pop(0)
+
+    socketio.emit(
+        "gps_update",
+        {
+            "data": rec,
+            "history": store["history"],
+            "behaviours": store["behaviours"],
+        },
+    )
+
+    print(
+        f"[{rec['time']}] "
+        f"{f_lat}, {f_lon} | "
+        f"{f_spd} km/h | "
+        f"K={kalman_gain:.3f} | "
+        f"P={uncertainty:.3f} | "
+        f"{beh}"
+    )
 
 # ──────────────────────────────────────────────────────────
 # TEST MODE
