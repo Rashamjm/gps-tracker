@@ -165,7 +165,7 @@ def emit_record(
 
     "msg_count": store["count"] + 1,
 }
-    }
+    
 
     store["latest"] = rec
     store["count"] += 1
