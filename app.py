@@ -44,34 +44,7 @@ MQTT_TOPIC = "V2/Vehicle/Telemetry"
 MQTT_USER = "gps_device"
 MQTT_PASS = "Gps12345"
 
-# Keep TRUE first for Railway testing
 TEST_MODE = False
-
-
-# ──────────────────────────────────────────────────────────
-# Kalman Filter
-# ──────────────────────────────────────────────────────────
-class KalmanFilter:
-    def __init__(self, Q=0.01, R=0.5, X=0.0, P=1.0):
-        self.Q = Q
-        self.R = R
-        self.X = X
-        self.P = P
-        self.K = 0
-
-    def update(self, Z):
-        self.P += self.Q
-        self.K = self.P / (self.P + self.R)
-        self.X = self.X + self.K * (Z - self.X)
-        self.P = (1 - self.K) * self.P
-        return self.X
-
-
-kf_lat = KalmanFilter(Q=0.01, R=0.5)
-kf_lon = KalmanFilter(Q=0.01, R=0.5)
-kf_speed = KalmanFilter(Q=0.1, R=2.0)
-
-inited = False
 
 
 # ──────────────────────────────────────────────────────────
@@ -108,11 +81,13 @@ def detect_behaviour(ax, ay, az):
         return "RAPID_ACCEL"
     elif abs(ay) > 0.25:
         return "SHARP_TURN"
+
     return "NORMAL"
 
 
 # ──────────────────────────────────────────────────────────
 # Emit Record
+# (NO Kalman here — ESP32 already filtered)
 # ──────────────────────────────────────────────────────────
 def emit_record(
     raw_lat,
@@ -124,40 +99,28 @@ def emit_record(
     az,
     device_id,
     behaviour=None,
-    data_k_gain=0,
-    data_uncertainty=0,
 ):
-    beh = behaviour or detect_behaviour(ax, ay, az)
-
-    # Use ESP32 filtered data directly
     f_lat = round(raw_lat, 6)
     f_lon = round(raw_lon, 6)
     f_spd = round(raw_spd, 1)
 
+    beh = behaviour or detect_behaviour(ax, ay, az)
+
     rec = {
         "time": datetime.now().strftime("%H:%M:%S"),
         "device_id": device_id,
-
         "lat": f_lat,
         "lon": f_lon,
         "lat_raw": round(raw_lat, 6),
         "lon_raw": round(raw_lon, 6),
-
         "speed": f_spd,
         "altitude": alt,
-
         "behaviour": beh,
         "beh_color": BEH_COLOR[beh],
-
         "accel_x": round(ax, 3),
         "accel_y": round(ay, 3),
         "accel_z": round(az, 3),
-
         "msg_count": store["count"] + 1,
-
-        # Kalman values from ESP32
-        "kalman_gain": round(data_k_gain, 4),
-        "uncertainty": round(data_uncertainty, 4),
     }
 
     store["latest"] = rec
@@ -196,19 +159,23 @@ def process_message(payload):
         gps = data.get("gps", {})
         imu = data.get("imu", {})
 
-  emit_record(
-    raw_lat=float(gps.get("lat", 6.3553)),
-    raw_lon=float(gps.get("lon", 80.5236)),
-    raw_spd=float(gps.get("speed", 0)),
-    alt=float(gps.get("altitude", 12)),
-    ax=float(imu.get("accel_x", 0)),
-    ay=float(imu.get("accel_y", 0)),
-    az=float(imu.get("accel_z", 9.81)),
-    device_id=data.get("device_id", "GROUP2_VEHICLE_01"),
-    behaviour=data.get("behaviour"),
-    data_k_gain=float(data.get("kalman_gain", 0)),
-    data_uncertainty=float(data.get("uncertainty", 0)),
-)
+        emit_record(
+            raw_lat=float(gps.get("lat", 6.3553)),
+            raw_lon=float(gps.get("lon", 80.5236)),
+            raw_spd=float(gps.get("speed", 0)),
+            alt=float(gps.get("altitude", 12)),
+            ax=float(imu.get("accel_x", 0)),
+            ay=float(imu.get("accel_y", 0)),
+            az=float(imu.get("accel_z", 9.81)),
+            device_id=data.get(
+                "device_id",
+                "GROUP2_VEHICLE_01"
+            ),
+            behaviour=data.get(
+                "behaviour",
+                "NORMAL"
+            )
+        )
 
     except Exception as e:
         print("Message Error:", e)
