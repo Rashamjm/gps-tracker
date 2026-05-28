@@ -279,6 +279,27 @@ def on_connect(client, userdata, flags, rc):
     else:
         print("MQTT Failed:", rc)
 
+def process_message(payload):
+    try:
+        data = json.loads(payload)
+        gps  = data.get("gps", {})
+        imu  = data.get("imu", {})
+        emit_record(
+            raw_lat   = float(gps.get("lat_raw", gps.get("lat", 6.3553))),
+            raw_lon   = float(gps.get("lon_raw", gps.get("lon", 80.5236))),
+            raw_spd   = float(gps.get("speed", 0)),
+            alt       = float(gps.get("altitude", 12.0)),
+            ax        = float(imu.get("accel_x", 0.01)),
+            ay        = float(imu.get("accel_y", -0.01)),
+            az        = float(imu.get("accel_z", 9.81)),
+            device_id = data.get("device_id", "GROUP2_VEHICLE_01"),
+            behaviour = data.get("behaviour"),
+        )
+    except Exception as e:
+        print(f"Message error: {e}")
+
+def on_message(client, userdata, msg):
+    process_message(msg.payload.decode("utf-8"))
 
 def on_message(client, userdata, msg):
     process_message(msg.payload.decode())
